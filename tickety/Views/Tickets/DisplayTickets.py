@@ -1,0 +1,56 @@
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from rest_framework import status
+from tickety.models import QitTickets, QitTicketcategory, QitTicketsubcategory, QitCompany, QitCompanycustomer, QitCompanyuser,QitActivities,QitNotifications,QitConfiguration
+from tickety.serializers import QitTicketcategorySerializer, QitTicketsSerializer, QitTicketsubcategorySerializer,ToggleTicketStatusSerializer,QitActivitiesSerializer,QitNotificationsSerializer
+from rest_framework.views import APIView
+from rest_framework.decorators import authentication_classes
+from tickety.Views import auth_views
+from rest_framework.exceptions import AuthenticationFailed
+from django.conf import settings
+from django.core.mail import send_mail
+from django.template.loader import render_to_string
+from django.utils.html import strip_tags
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from rest_framework import status
+
+
+
+@api_view(['GET'])
+@authentication_classes([auth_views.CustomAuthentication])  # Apply custom authentication
+def get_ticket_by_code(request, ticketcode):
+    """Retrieve a ticket by its ticket code."""
+    try:
+        ticket = QitTickets.objects.get(ticketcode=ticketcode)  # Retrieve the ticket with the given ticketcode
+        serializer = QitTicketsSerializer(ticket)  # Serialize the ticket
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    except QitTickets.DoesNotExist:
+        return Response({'error': 'Ticket not found with the given ticket code.'}, status=status.HTTP_404_NOT_FOUND)
+    
+
+
+
+@api_view(['GET'])
+@authentication_classes([auth_views.CustomAuthentication])  # Apply custom authentication
+def get_all_tickets(request):
+    """Retrieve all tickets for a specific company."""
+    company_transid = request.query_params.get('companytransid')  # Retrieve companytransid from query parameters
+
+    if not company_transid:
+        return Response({'error': 'You must provide companytransid.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Filter tickets by the provided companytransid
+    tickets = QitTickets.objects.filter(companytransid=company_transid)
+
+    # Check if tickets exist for the company
+    if not tickets.exists():
+        return Response({'error': 'No tickets found for the specified company.'}, status=status.HTTP_404_NOT_FOUND)
+
+    # Serialize the filtered tickets
+    serialized_tickets = QitTicketsSerializer(tickets, many=True)
+
+    return Response(serialized_tickets.data, status=status.HTTP_200_OK)
+
+
+
